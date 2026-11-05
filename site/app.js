@@ -87,7 +87,7 @@ function timeChart(container, pts, opts = {}) {
 
   if (opts.goal != null) {
     svg.append(s("line", { class: "goal-line", x1: x0, x2: x1, y1: Y(opts.goal), y2: Y(opts.goal) }));
-    svg.append(s("text", { class: "goal-label", x: x1, y: Y(opts.goal) - 6, "text-anchor": "end" }, opts.goalLabel || "Goal"));
+    svg.append(s("text", { class: "goal-label", x: x0 + 6, y: Y(opts.goal) - 6, "text-anchor": "start" }, opts.goalLabel || "Goal"));
   }
 
   const sorted = [...pts].sort((a, b) => a.t - b.t);
@@ -148,6 +148,8 @@ function barChart(container, bars, opts = {}) {
   });
   svg.append(s("line", { class: "baseline", x1: x0, x2: x1, y1: y1, y2: y1 }));
 }
+
+const timeTicks = (a, b) => { const st = [15, 30, 60, 120, 300].find((x) => (b - a) / x <= 5) || 600; const o = []; for (let v = Math.ceil(a / st) * st; v <= b; v += st) o.push(v); return o; };
 
 // ---------- data shaping ----------
 function best3kEfforts(runs, goal) {
@@ -245,8 +247,10 @@ function render() {
   // --- charts
   const draw = () => {
     for (const e of efforts) { e.highlight = best && e.y === best.y; e.annotate = e.highlight ? fmtTime(e.y) : null; }
-    timeChart($("#c3k"), efforts, { invert: true, goal: goal.targetSeconds, goalLabel: `Goal ${fmtTime(goal.targetSeconds)}`, fmtY: fmtTime,
-      yTicks: (a, b) => { const st = [15, 30, 60, 120, 300].find((x) => (b - a) / x <= 5) || 600; const o = []; for (let v = Math.ceil(a / st) * st; v <= b; v += st) o.push(v); return o; }, ptClass: (p) => (p.y <= goal.targetSeconds ? "under" : ""),
+    const yearAgo = new Date(now - 365 * 864e5);
+    const recentEfforts = efforts.filter((e) => e.t >= yearAgo && e.y <= goal.targetSeconds * 1.35);
+    timeChart($("#c3k"), recentEfforts, { invert: true, goal: goal.targetSeconds, goalLabel: `Goal ${fmtTime(goal.targetSeconds)}`, fmtY: fmtTime,
+      yTicks: timeTicks, ptClass: (p) => (p.y <= goal.targetSeconds ? "under" : ""),
       empty: "No runs of about 3K found. Add a manual result in config.json." });
 
     const weeks = [];
@@ -260,7 +264,7 @@ function render() {
     const pacePts = runs.filter((r) => r.date >= d180 && r.distance >= 1000 && (r.movingDuration || r.duration))
       .map((r) => { const p = (r.movingDuration || r.duration) / km(r.distance); return { t: r.date, y: p, label: `${fmtDateY(r.date)} · ${km(r.distance).toFixed(1)} km` }; })
       .filter((p) => p.y > 150 && p.y < 600);
-    timeChart($("#cpace"), pacePts, { invert: true, line: false, fmtY: (v) => fmtTime(v), goal: goal.targetSeconds / (goal.distanceMeters / 1000), goalLabel: "3K goal pace" });
+    timeChart($("#cpace"), pacePts, { invert: true, line: false, fmtY: (v) => fmtTime(v), yTicks: timeTicks, goal: goal.targetSeconds / (goal.distanceMeters / 1000), goalLabel: "3K goal pace" });
 
     timeChart($("#crhr"), rhrs.map((d) => ({ t: parseDate(d.date), y: d.restingHR, label: fmtDateY(parseDate(d.date)) })), { h: 180, area: true, dots: false, fmtY: (v) => Math.round(v) });
   };
@@ -294,9 +298,10 @@ function render() {
   if (!runs.length) { const tr = el("tr"); tr.append(el("td", { colspan: 6, class: "empty" }, "No runs synced yet.")); tb.replaceChildren(tr); }
 }
 
+const inline = (id) => { const n = document.getElementById(id); return n ? JSON.parse(n.textContent) : undefined; };
 Promise.all([
-  fetch("config.json").then((r) => r.json()),
-  fetch("data/garmin.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  inline("cfg-json") ?? fetch("config.json").then((r) => r.json()),
+  inline("garmin-json") ?? fetch("data/garmin.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
 ]).then(([cfg, data]) => {
   CONFIG = cfg;
   if (!data) { $("#app").hidden = true; $("#setup").hidden = false; return; }
