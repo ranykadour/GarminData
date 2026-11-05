@@ -17,6 +17,28 @@
 <main id="app">
   <section class="hero" id="hero"></section>
 
+  <section class="card coach" id="coach" hidden>
+    <div class="coach-head">
+      <div class="card-head"><h2>Coach</h2><p class="sub">Claude reads your Garmin history and coaches you. It uses your own Claude account.</p></div>
+      <div class="coach-actions">
+        <button id="coach-run" class="btn primary" type="button">Review my training</button>
+        <button id="coach-stop" class="btn" type="button" hidden>Stop</button>
+      </div>
+    </div>
+    <div id="coach-status" class="coach-status" aria-live="polite"></div>
+    <div id="coach-review" class="coach-review" hidden></div>
+    <div class="chat">
+      <h3>Ask your coach</h3>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form">
+        <label for="chat-input" class="sr">Message</label>
+        <input id="chat-input" type="text" autocomplete="off" placeholder="e.g. Can I go sub-16:00 by December?">
+        <button class="btn primary" type="submit" id="chat-send">Send</button>
+      </form>
+      <div class="chips" id="chat-chips"></div>
+    </div>
+  </section>
+
   <section class="card">
     <div class="card-head"><h2>Keeping 16:15</h2><p class="sub">Checks on your recent training, updated with every sync</p></div>
     <div class="checks" id="checks"></div>

@@ -231,6 +231,7 @@ function renderMaintenance({ runs, acts, goal, best, efforts, now }) {
       why: diff <= 2 ? `7-day resting HR is in line with your 30-day average (${r30.toFixed(0)}).` : `7-day resting HR is ${diff.toFixed(1)} bpm above your 30-day average. Sleep, easy days.` });
   }
 
+  COACH_CTX.checks = checks.map((c) => `${c.ok ? "OK" : "NEEDS WORK"} | ${c.title}: ${c.val}. ${c.why}`);
   $("#checks").replaceChildren(...checks.map((c) => {
     const d = el("div", { class: "check" });
     const top = el("div", { class: "top-row" });
@@ -282,11 +283,162 @@ function renderMaintenance({ runs, acts, goal, best, efforts, now }) {
   if (lastStrength && daysAgo(lastStrength.date, now) > 21)
     ins.push(["Strength has gone quiet", `Your last strength session was ${plural(daysAgo(lastStrength.date, now), "day")} ago. One or two a week supports speed and keeps injuries away.`]);
 
+  COACH_CTX.insights = ins.map(([h, b]) => `${h}. ${b}`);
   $("#insights").replaceChildren(...ins.map(([h, b]) => { const li = el("li"); li.append(el("span", { class: "h" }, h), el("span", { class: "b" }, b)); return li; }));
+}
+
+// ---------- AI coach (only where the Claude viewer offers it) ----------
+function coachSummary({ runs, acts, goal, best, now }) {
+  const L = [];
+  L.push(`Athlete: ${DATA.name || "runner"}. Today: ${now.toDateString()}. Data synced ${DATA.generatedAt}.`);
+  L.push(`Main goal: ${goal.label} in ${fmtTime(goal.targetSeconds)} (${fmtPace(goal.targetSeconds / 3)}). ${best ? `Best: ${fmtTime(best.y)} on ${fmtDateY(best.t)} (${best.how}). ACHIEVED.` : "Not yet achieved."}`);
+  L.push("", "Maintenance checks:", ...(COACH_CTX.checks || []).map((c) => "- " + c));
+  L.push("", "Insights:", ...(COACH_CTX.insights || []).map((c) => "- " + c));
+  const rp = Array.isArray(DATA.racePredictions) ? DATA.racePredictions[0] : DATA.racePredictions;
+  if (rp) L.push("", `Garmin race predictions: 5K ${fmtTime(rp.time5K)}, 10K ${fmtTime(rp.time10K)}, HM ${fmtTime(rp.timeHalfMarathon)}, M ${fmtTime(rp.timeMarathon)}.`);
+  const prs = (DATA.personalRecords || []).filter((p) => p.label);
+  if (prs.length) L.push("Garmin PRs: " + prs.map((p) => `${p.label} ${p.typeId === 7 ? km(p.value).toFixed(1) + " km" : fmtTime(p.value)} (${(p.date || "").slice(0, 10)})`).join("; "));
+  const vo2 = runs.find((r) => r.vo2max)?.vo2max;
+  if (vo2) L.push(`VO2max (Garmin): ${vo2}.`);
+  const ws = weekStart(now), weeks = [];
+  for (let i = 15; i >= 0; i--) { const w = new Date(ws); w.setDate(w.getDate() - i * 7); const inW = runs.filter((r) => +weekStart(r.date) === +w); weeks.push(`${fmtDate(w)}: ${km(inW.reduce((a, r) => a + r.distance, 0)).toFixed(1)} km/${inW.length} runs`); }
+  L.push("", "Weekly running volume, last 16 weeks (week starting Monday): " + weeks.join("; "));
+  L.push("", "Last 40 runs (date | type | km | time | pace/km | avg HR | max HR):");
+  for (const r of runs.slice(0, 40)) {
+    const tt = r.movingDuration || r.duration;
+    L.push(`${r.start.slice(0, 10)} | ${r.type.replace("_running", "").replace("running", "outdoor")} | ${km(r.distance).toFixed(2)} | ${fmtTime(tt)} | ${fmtTime(tt / km(r.distance))} | ${r.avgHR ? Math.round(r.avgHR) : "-"} | ${r.maxHR ? Math.round(r.maxHR) : "-"}`);
+  }
+  const other = acts.filter((a) => !a.isRun && now - a.date <= 90 * DAY);
+  const c = {}; other.forEach((a) => (c[a.type] = (c[a.type] || 0) + 1));
+  L.push("", "Other activities, last 90 days: " + (Object.entries(c).map(([k, v]) => `${k} ×${v}`).join(", ") || "none"));
+  const lastStr = acts.filter((a) => a.type === "strength_training").sort((a, b) => b.date - a.date)[0];
+  if (lastStr) L.push(`Last strength session: ${lastStr.start.slice(0, 10)}.`);
+  const daily = (DATA.daily || []).filter((d) => d.restingHR);
+  if (daily.length) L.push("Resting HR last 30 days: " + daily.map((d) => d.restingHR).join(", ") + ".");
+  return L.join("\n");
+}
+
+const COACH_RULES = `You are an experienced, encouraging but honest running coach for a middle-distance runner. Base everything on the athlete's Garmin data below; cite specific numbers and dates from it. Be concrete: paces in min/km, distances, rep schemes, rest. Prioritise injury prevention when load jumps. Note that some 3K times are whole runs scaled to 3,000 m and treadmill pace can read fast. Don't invent data that isn't there. Keep it short and practical.`;
+
+function mdInto(node, text) {
+  // Tiny, safe markdown: paragraphs, "- " bullets, **bold**. Everything goes in as text nodes.
+  node.replaceChildren();
+  const inline = (parent, s) => s.split(/(\*\*[^*]+\*\*)/g).forEach((part) => {
+    if (/^\*\*[^*]+\*\*$/.test(part)) parent.append(el("strong", {}, part.slice(2, -2)));
+    else if (part) parent.append(document.createTextNode(part));
+  });
+  let ul = null;
+  for (const raw of text.split("\n")) {
+    const line = raw.replace(/^#+\s*/, "").trimEnd();
+    const b = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
+    if (b) { if (!ul) { ul = el("ul"); node.append(ul); } const li = el("li"); inline(li, b[1]); ul.append(li); continue; }
+    ul = null;
+    if (line.trim()) { const p = el("p"); inline(p, line); node.append(p); }
+  }
+}
+
+function coachErrorCopy(e) {
+  switch (e?.code) {
+    case "rate_limited": return "Claude is busy or you've hit a usage limit. Try again in a bit.";
+    case "session_expired": return "Sign in to Claude again, then retry.";
+    case "refused": return "Claude didn't answer that. Try rephrasing.";
+    case "invalid_json": case "empty_completion": return "The review came back garbled. Tap Review again.";
+    default: return "Something went wrong reaching Claude. Try again.";
+  }
+}
+
+let coachSetUp = false;
+async function setupCoach() {
+  if (coachSetUp) return; coachSetUp = true;
+  if (!window.claude?.use) return;           // the public GitHub site: no coach
+  let sample = null;
+  try { sample = await window.claude.use("sample"); } catch { sample = null; }
+  if (!sample) return;
+  const card = $("#coach"); card.hidden = false;
+  const hide = () => { card.hidden = true; };
+  const status = $("#coach-status"), review = $("#coach-review"), runBtn = $("#coach-run"), stopBtn = $("#coach-stop");
+  const FLAG = "coach-opted-in";
+  const store = { get: () => { try { return localStorage.getItem(FLAG); } catch { return null; } }, set: () => { try { localStorage.setItem(FLAG, "1"); } catch {} } };
+  let ctl = null;
+  stopBtn.onclick = () => ctl?.abort();
+
+  const renderReview = (r) => {
+    review.replaceChildren(); review.hidden = false;
+    if (r.headline) review.append(el("p", { class: "cr-headline" }, String(r.headline)));
+    if (r.assessment) review.append(el("p", { class: "cr-text" }, String(r.assessment)));
+    const cols = el("div", { class: "cr-cols" });
+    for (const [title, list] of [["What's working", r.strengths], ["What to fix", r.concerns]]) {
+      if (!Array.isArray(list) || !list.length) continue;
+      const box = el("div"); box.append(el("h3", {}, title));
+      const ul = el("ul"); list.slice(0, 5).forEach((x) => ul.append(el("li", {}, String(x)))); box.append(ul); cols.append(box);
+    }
+    if (cols.children.length) review.append(cols);
+    if (Array.isArray(r.weekPlan) && r.weekPlan.length) {
+      const plan = el("div", { class: "cr-plan" }); plan.append(el("h3", {}, "Your next 7 days"));
+      const days = el("div", { class: "days" });
+      r.weekPlan.slice(0, 7).forEach((d) => {
+        const row = el("div", { class: "day" }), body = el("div");
+        body.append(el("div", { class: "s" }, String(d.session || "")), el("div", { class: "x" }, String(d.detail || "")));
+        row.append(el("div", { class: "d" }, String(d.day || "")), body); days.append(row);
+      });
+      plan.append(days); review.append(plan);
+    }
+    if (r.nextGoal) review.append(el("p", { class: "cr-text" }, "Next goal: " + String(r.nextGoal)));
+    review.append(el("p", { class: "cr-meta" }, `Based on data synced ${new Date(DATA.generatedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}.`));
+  };
+
+  const runReview = async (refresh) => {
+    ctl = new AbortController();
+    runBtn.disabled = true; stopBtn.hidden = false; status.textContent = "Your coach is reading your training…";
+    const tomorrow = new Date(Date.now() + DAY);
+    const prompt = `${COACH_RULES}
+
+Write a training review and a plan for the next 7 days starting ${tomorrow.toDateString()}. The athlete already hit their 3K goal; the job now is to hold that fitness and build toward the next target.
+
+Reply with only a JSON object of this shape:
+{"headline": "one punchy sentence verdict", "assessment": "3-4 sentences on where they are, citing numbers", "strengths": ["up to 4 short points"], "concerns": ["up to 4 short points, each with the fix"], "weekPlan": [{"day": "Fri 6", "session": "Easy run 5 km", "detail": "pace / reps / why"}], "nextGoal": "a specific next target with a realistic date"}
+weekPlan has exactly 7 entries, one per day, rest days included.
+
+ATHLETE DATA
+${COACH_CTX.summary()}`;
+    try {
+      const r = await sample.json(prompt, { signal: ctl.signal, cache: { gcTime: 864e5, refresh: !!refresh } });
+      store.set(); status.textContent = ""; renderReview(r || {}); runBtn.textContent = "Refresh review";
+    } catch (e) {
+      if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(e?.code)) return hide();
+      status.textContent = e?.code === "cancelled" ? "" : coachErrorCopy(e);
+    } finally { runBtn.disabled = false; stopBtn.hidden = true; }
+  };
+  runBtn.onclick = () => runReview(review.hidden === false);
+  if (store.get()) runReview(false);       // replays today's review from cache when nothing changed
+
+  // chat
+  const log = $("#chat-log"), form = $("#chat-form"), input = $("#chat-input"), send = $("#chat-send");
+  const turns = [];
+  const bubble = (who, text) => { const b = el("div", { class: "msg " + who }); if (who === "me") b.textContent = text; else mdInto(b, text); log.append(b); return b; };
+  const ask = async (q) => {
+    if (!q.trim() || send.disabled) return;
+    input.value = ""; bubble("me", q); turns.push({ role: "user", content: q });
+    const b = bubble("coach", "Thinking…"); send.disabled = true;
+    const c = new AbortController();
+    try {
+      const head = [{ role: "user", content: `${COACH_RULES} Answer the athlete's questions in a few short paragraphs or bullets.\n\nATHLETE DATA\n${COACH_CTX.summary()}` }];
+      const { text } = await sample([...head, ...turns.slice(-10)], { cache: false, signal: c.signal, onText: ({ text }) => mdInto(b, text) });
+      mdInto(b, text); turns.push({ role: "assistant", content: text }); store.set();
+    } catch (e) {
+      if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(e?.code)) return hide();
+      if (e?.text) mdInto(b, e.text); else b.textContent = coachErrorCopy(e);
+      turns.pop();
+    } finally { send.disabled = false; }
+  };
+  form.addEventListener("submit", (e) => { e.preventDefault(); ask(input.value); });
+  const chips = ["How do I get to 16:00?", "Am I running too much or too little?", "What should my easy pace be?", "Plan a 3K time trial"];
+  $("#chat-chips").replaceChildren(...chips.map((q) => { const b = el("button", { class: "chip", type: "button" }, q); b.onclick = () => ask(q); return b; }));
 }
 
 // ---------- render ----------
 let DATA, CONFIG;
+const COACH_CTX = {};
 function render() {
   const goal = CONFIG.goal;
   const acts = (DATA.activities || []).map((a) => ({ ...a, date: parseDate(a.start) })).filter((a) => a.date);
@@ -326,6 +478,8 @@ function render() {
   hero.append(left, right);
 
   renderMaintenance({ runs, acts, goal, best, efforts, now });
+  COACH_CTX.summary = () => coachSummary({ runs, acts, goal, best, now });
+  setupCoach();
 
   // --- tiles
   const yr = runs.filter((r) => r.date.getFullYear() === now.getFullYear());
