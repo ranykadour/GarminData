@@ -182,6 +182,109 @@ function kvRows(container, rows) {
   }));
 }
 
+// ---------- maintenance checks & insights ----------
+const DAY = 864e5;
+const daysAgo = (d, now) => Math.floor((now - d) / DAY);
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+function renderMaintenance({ runs, acts, goal, best, efforts, now }) {
+  const goalPace = goal.targetSeconds / (goal.distanceMeters / 1000);
+  const within = (days) => runs.filter((r) => now - r.date <= days * DAY);
+  const pace = (r) => (r.movingDuration || r.duration) / km(r.distance);
+  const checks = [];
+
+  // 1. A goal-pace 3K recently
+  const fast = efforts.filter((e) => e.y <= goal.targetSeconds).sort((a, b) => b.t - a.t)[0];
+  const fastAge = fast ? daysAgo(fast.t, now) : null;
+  checks.push({ title: "Recent sub-16:15 3K", ok: fast && fastAge <= 30,
+    val: fast ? (fastAge === 0 ? "Today" : `${plural(fastAge, "day")} ago`) : "None yet",
+    why: fast && fastAge <= 30 ? `${fmtTime(fast.y)} on ${fmtDate(fast.t)}. Re-test about every 4 weeks.`
+      : `Time to re-test. A 3K time trial by ${fmtDate(new Date(+now + 7 * DAY))} shows you still have it.` });
+
+  // 2. Speed work in the last 14 days (any run of 1 km+ at goal pace or faster)
+  const quick = within(14).filter((r) => r.distance >= 1000 && pace(r) <= goalPace * 1.02);
+  checks.push({ title: "Speed in the last 2 weeks", ok: quick.length >= 1, val: plural(quick.length, "fast run"),
+    why: quick.length ? `Runs at about ${fmtPace(goalPace)} or quicker keep the pace familiar.` : `Add one session at ${fmtPace(goalPace)}, e.g. 5 × 600 m with 90 s rest.` });
+
+  // 3. Consistency: runs per week over the last 4 weeks
+  const n28 = within(28).length, perWeek = n28 / 4;
+  checks.push({ title: "Runs per week", ok: perWeek >= 2, val: perWeek.toFixed(1), why: perWeek >= 2 ? "Last 4 weeks. Two or more a week holds your fitness." : "Last 4 weeks. Aim for at least 2 runs a week." });
+
+  // 4. Load: last 4 weeks vs the 8 weeks before (acute:chronic)
+  const sum = (arr) => arr.reduce((a, r) => a + r.distance, 0);
+  const recent = sum(within(28)) / 4;
+  const base = sum(runs.filter((r) => now - r.date > 28 * DAY && now - r.date <= 84 * DAY)) / 8;
+  const ratio = base ? recent / base : null;
+  checks.push({ title: "Training load", ok: ratio != null && ratio >= 0.8 && ratio <= 1.3,
+    val: ratio == null ? "–" : `${km(recent).toFixed(1)} km/wk`,
+    why: ratio == null ? "Not enough history yet."
+      : ratio < 0.8 ? `Down ${Math.round((1 - ratio) * 100)}% vs your previous 8 weeks (${km(base).toFixed(1)} km/wk). Build back gradually.`
+      : ratio > 1.3 ? `Up ${Math.round((ratio - 1) * 100)}% vs your previous 8 weeks. Big jumps raise injury risk, so ease off a little.`
+      : `Steady vs your previous 8 weeks (${km(base).toFixed(1)} km/wk).` });
+
+  // 5. Recovery: resting HR last 7 days vs 30 days
+  const rh = (DATA.daily || []).filter((d) => d.restingHR).map((d) => d.restingHR);
+  if (rh.length >= 10) {
+    const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    const r7 = avg(rh.slice(-7)), r30 = avg(rh), diff = r7 - r30;
+    checks.push({ title: "Recovery", ok: diff <= 2, val: `${r7.toFixed(0)} bpm`,
+      why: diff <= 2 ? `7-day resting HR is in line with your 30-day average (${r30.toFixed(0)}).` : `7-day resting HR is ${diff.toFixed(1)} bpm above your 30-day average. Sleep, easy days.` });
+  }
+
+  $("#checks").replaceChildren(...checks.map((c) => {
+    const d = el("div", { class: "check" });
+    const top = el("div", { class: "top-row" });
+    top.append(el("span", { class: "title" }, c.title), el("span", { class: "pill " + (c.ok ? "good" : "warn") }, c.ok ? "✓ On track" : "! Needs work"));
+    d.append(top, el("div", { class: "val num" }, c.val), el("div", { class: "why" }, c.why));
+    return d;
+  }));
+
+  // ----- insights
+  const ins = [];
+  const yearAgo = new Date(now - 365 * DAY);
+  const yr = efforts.filter((e) => e.t >= yearAgo && e.y <= goal.targetSeconds * 1.35).sort((a, b) => a.t - b.t);
+  if (yr.length >= 2 && best) {
+    const first = yr[0];
+    const gain = first.y - best.y;
+    if (gain > 0) ins.push([`${fmtTime(gain)} faster over 3K since ${fmtDate(first.t, { month: "short", year: "numeric" })}`, `From ${fmtTime(first.y)} on ${fmtDateY(first.t)} to ${fmtTime(best.y)} on ${fmtDateY(best.t)}, across ${plural(yr.length, "3K effort")}.`]);
+  }
+  const byType = (pred) => efforts.filter((e) => e.run && pred(e.run.type)).reduce((m, e) => (!m || e.y < m.y ? e : m), null);
+  const tm = byType((t) => t.includes("treadmill")), out = byType((t) => !t.includes("treadmill"));
+  if (tm && out) {
+    const both = tm.y <= goal.targetSeconds && out.y <= goal.targetSeconds;
+    ins.push([both ? "You've broken 16:15 indoors and out" : "Treadmill vs outdoor",
+      `Treadmill best ${fmtTime(tm.y)} (${fmtDate(tm.t)}), outdoor best ${fmtTime(out.y)} (${fmtDate(out.t)}). ${both ? "That's a solid result, not a treadmill fluke." : "Treadmills often read fast, so the outdoor time is the one to trust."}`]);
+  }
+  const rp = Array.isArray(DATA.racePredictions) ? DATA.racePredictions[0] : DATA.racePredictions;
+  if (rp?.time5K) {
+    const p3 = rp.time5K * (3 / 5) ** 1.06;
+    ins.push([`Garmin's model puts you at about ${fmtTime(p3)} for 3K`, `Scaled from its ${fmtTime(rp.time5K)} 5K prediction. ${p3 < (best?.y ?? Infinity) ? "That's quicker than your best, so a faster 3K may be in you." : "Your real result already beats it."}`]);
+  }
+  if (best) {
+    const next = Math.floor((best.y - 1) / 15) * 15; // next 15-second barrier
+    ins.push([`Next target: ${fmtTime(next)}`, `That's ${fmtPace(next / 3)}, ${Math.round(best.y / 3 - next / 3)} s/km quicker than your best. Your 1K PR is ${(() => { const pr = (DATA.personalRecords || []).find((p) => p.typeId === 1); return pr ? fmtTime(pr.value) : "–"; })()}.`]);
+  }
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const recentRuns = runs.filter((r) => now - r.date <= 180 * DAY);
+  if (recentRuns.length >= 10) {
+    const cnt = Array(7).fill(0); recentRuns.forEach((r) => cnt[r.date.getDay()]++);
+    const top = cnt.indexOf(Math.max(...cnt)), low = cnt.indexOf(Math.min(...cnt));
+    ins.push([`${days[top]} is your running day`, `${cnt[top]} of your last ${recentRuns.length} runs were on a ${days[top]}. ${days[low]} is the quietest (${cnt[low]}).`]);
+  }
+  const other = acts.filter((a) => !a.isRun && now - a.date <= 90 * DAY);
+  if (other.length) {
+    const c = {}; other.forEach((a) => (c[a.type] = (c[a.type] || 0) + 1));
+    const nice = (t) => t.replace(/_v\d+$/, "").replace(/_/g, " ");
+    const list = Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t, n]) => `${n} ${nice(t)}`).join(", ");
+    ins.push(["Cross-training, last 90 days", `${list}. Strength work helps hold 3K speed.`]);
+  }
+  const lastStrength = acts.filter((a) => a.type === "strength_training").sort((a, b) => b.date - a.date)[0];
+  if (lastStrength && daysAgo(lastStrength.date, now) > 21)
+    ins.push(["Strength has gone quiet", `Your last strength session was ${plural(daysAgo(lastStrength.date, now), "day")} ago. One or two a week supports speed and keeps injuries away.`]);
+
+  $("#insights").replaceChildren(...ins.map(([h, b]) => { const li = el("li"); li.append(el("span", { class: "h" }, h), el("span", { class: "b" }, b)); return li; }));
+}
+
 // ---------- render ----------
 let DATA, CONFIG;
 function render() {
@@ -221,6 +324,8 @@ function render() {
   right.append(hs("Margin vs goal", diff == null ? "–" : (diff >= 0 ? "−" : "+") + fmtTime(Math.abs(diff)), diff >= 0 ? "under target" : "over target"));
   right.append(hs("Goal pace", fmtPace(goal.targetSeconds / (goal.distanceMeters / 1000)), best ? `yours: ${fmtPace(best.y / (goal.distanceMeters / 1000))}` : ""));
   hero.append(left, right);
+
+  renderMaintenance({ runs, acts, goal, best, efforts, now });
 
   // --- tiles
   const yr = runs.filter((r) => r.date.getFullYear() === now.getFullYear());
