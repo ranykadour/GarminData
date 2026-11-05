@@ -1,0 +1,5 @@
+{
+  "goal": { "label": "3K", "distanceMeters": 3000, "targetSeconds": 975 },
+  "manualBest3k": null,
+  "_manualBest3k_example": { "seconds": 970, "date": "2026-09-14", "note": "Track race" }
+}

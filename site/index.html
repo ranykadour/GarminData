@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="dot"></span><span id="who">Run Log</span></div>
+  <div class="meta" id="synced"></div>
+</header>
+
+<main id="app">
+  <section class="hero" id="hero"></section>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="card">
+    <div class="card-head"><h2>3K efforts</h2><p class="sub">Every run of about 3K, or Garmin's fastest 3K split. The dashed line is 16:15.</p></div>
+    <div class="chart" id="c3k"></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="card-head"><h2>Weekly distance</h2><p class="sub">Last 26 weeks, km</p></div>
+      <div class="chart" id="cweekly"></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Run pace</h2><p class="sub">Average pace per run, last 180 days (faster is higher)</p></div>
+      <div class="chart" id="cpace"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="card-head"><h2>Race predictions</h2><p class="sub">From Garmin</p></div>
+      <div id="preds" class="kv"></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Personal records</h2><p class="sub">From Garmin</p></div>
+      <div id="prs" class="kv"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-head"><h2>Resting heart rate</h2><p class="sub">Last 30 days, bpm</p></div>
+    <div class="chart" id="crhr"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Recent runs</h2></div>
+    <div class="table-wrap"><table id="runs"><thead><tr><th>Date</th><th>Run</th><th class="r">Distance</th><th class="r">Time</th><th class="r">Pace</th><th class="r">Avg HR</th></tr></thead><tbody></tbody></table></div>
+  </section>
+</main>
+
+<section id="setup" class="setup" hidden>
+  <h1>No data yet</h1>
+  <p>The site reads <code>data/garmin.json</code>. Run <code>python scripts/fetch_garmin.py</code> locally, or set up the GitHub Action described in the README. It refreshes the data every day.</p>
+</section>
+
+<div id="tip" class="tip" role="tooltip" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
