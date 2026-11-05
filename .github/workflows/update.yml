@@ -1,19 +1,23 @@
-name: Refresh Garmin data
+name: Refresh Garmin data & deploy site
 
 on:
   schedule:
     - cron: "17 5 * * *"   # daily, 05:17 UTC
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
-  group: garmin-data
+  group: pages
   cancel-in-progress: true
 
 jobs:
-  fetch:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,12 +31,25 @@ jobs:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
         run: python scripts/fetch_garmin.py
-      - name: Save snapshot to the private `data` branch
+      - name: Save snapshot to the `data` branch
         env:
           TOKEN: ${{ github.token }}
         run: |
-          cd site/data
+          cp -r site/data /tmp/snap && cd /tmp/snap
           git init -q -b data
           git add garmin.json
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "Garmin data snapshot $(date -u +%F)"
           git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

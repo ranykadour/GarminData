@@ -103,12 +103,16 @@ def main():
                       "bodyBattery": s.get("bodyBatteryMostRecentValue"), "stress": s.get("averageStressLevel")})
 
     profile = safe("profile", g.get_full_name)
+    preds = safe("race predictions", g.get_race_predictions)
+    for p in (preds if isinstance(preds, list) else [preds]):
+        if isinstance(p, dict):
+            p.pop("userId", None)  # the published data never needs account IDs
     data = {
         "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
         "name": profile,
         "activities": [slim(a) for a in acts],
         "personalRecords": prs,
-        "racePredictions": safe("race predictions", g.get_race_predictions),
+        "racePredictions": preds,
         "maxMetrics": safe("max metrics", g.get_max_metrics, today.isoformat()),
         "daily": daily,
     }

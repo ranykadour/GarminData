@@ -7,10 +7,11 @@ A static site showing my Garmin running data, built around the main goal: **3K i
 ## How it works
 
 ```
-GitHub Action (daily) ── scripts/fetch_garmin.py ──> private `data` branch ──> dashboard page on claude.ai
+GitHub Action (daily) ── scripts/fetch_garmin.py ──> site/data/garmin.json ──> GitHub Pages
+                                                └──> `data` branch (snapshot)
 ```
 
-The data snapshot lives only on the `data` branch of this private repo. To update the dashboard page, ask Claude to republish it from the latest snapshot.
+Your Garmin login lives only in encrypted repo secrets, and GitHub masks it in logs. The published data has no email, password, token or account ID.
 
 ## Setup
 
