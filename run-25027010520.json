@@ -1,0 +1,344 @@
+{
+ "activityId": "25027010520",
+ "course": {
+  "distanceM": 2994,
+  "points": 996,
+  "shape": "out-and-back",
+  "endToStartM": 10,
+  "maxFromStartM": 1478,
+  "sharpTurns": 2,
+  "mirrorMedianM": 11,
+  "returnsToStart": 1,
+  "elevRangeM": 11.8,
+  "maxGradePct": 4.8,
+  "minGradePct": -3.9,
+  "totalGainM": 47.3,
+  "totalLossM": 46.9,
+  "splits": [
+   {
+    "km": 1,
+    "meters": 1000,
+    "seconds": 318,
+    "hr": 162,
+    "cadence": 80,
+    "gain": 12.6,
+    "loss": 22.3,
+    "netElev": -9.5
+   },
+   {
+    "km": 2,
+    "meters": 1000,
+    "seconds": 340,
+    "hr": 175,
+    "cadence": 78,
+    "gain": 11.8,
+    "loss": 12.4,
+    "netElev": -0.6
+   },
+   {
+    "km": 3,
+    "meters": 994,
+    "seconds": 337,
+    "hr": 197,
+    "cadence": 78,
+    "gain": 22.9,
+    "loss": 12.2,
+    "netElev": 10.7
+   }
+  ],
+  "climbs": [
+   {
+    "fromM": 100,
+    "gain": 2.5,
+    "toM": 200,
+    "avgGradePct": 2.5
+   },
+   {
+    "fromM": 800,
+    "gain": 2.3,
+    "toM": 900,
+    "avgGradePct": 2.3
+   },
+   {
+    "fromM": 1500,
+    "gain": 2.2,
+    "toM": 1600,
+    "avgGradePct": 2.2
+   },
+   {
+    "fromM": 2000,
+    "gain": 4.8,
+    "toM": 2100,
+    "avgGradePct": 4.8
+   },
+   {
+    "fromM": 2300,
+    "gain": 3.3,
+    "toM": 2400,
+    "avgGradePct": 3.3
+   },
+   {
+    "fromM": 2500,
+    "gain": 2.1,
+    "toM": 2600,
+    "avgGradePct": 2.1
+   },
+   {
+    "fromM": 2700,
+    "gain": 4.4,
+    "toM": 2800,
+    "avgGradePct": 4.4
+   }
+  ],
+  "profile100m": [
+   {
+    "m": 0,
+    "elev": 0.0
+   },
+   {
+    "m": 100,
+    "elev": -3.9,
+    "gradePct": -3.9,
+    "paceSecPerKm": 298,
+    "hr": 130
+   },
+   {
+    "m": 200,
+    "elev": -1.4,
+    "gradePct": 2.5,
+    "paceSecPerKm": 290,
+    "hr": 159
+   },
+   {
+    "m": 300,
+    "elev": -4.3,
+    "gradePct": -2.9,
+    "paceSecPerKm": 323,
+    "hr": 168
+   },
+   {
+    "m": 400,
+    "elev": -4.5,
+    "gradePct": -0.2,
+    "paceSecPerKm": 320,
+    "hr": 166
+   },
+   {
+    "m": 500,
+    "elev": -6.2,
+    "gradePct": -1.7,
+    "paceSecPerKm": 312,
+    "hr": 168
+   },
+   {
+    "m": 600,
+    "elev": -5.8,
+    "gradePct": 0.4,
+    "paceSecPerKm": 323,
+    "hr": 172
+   },
+   {
+    "m": 700,
+    "elev": -7.9,
+    "gradePct": -2.1,
+    "paceSecPerKm": 319,
+    "hr": 174
+   },
+   {
+    "m": 800,
+    "elev": -7.9,
+    "gradePct": 0.0,
+    "paceSecPerKm": 333,
+    "hr": 163
+   },
+   {
+    "m": 900,
+    "elev": -5.6,
+    "gradePct": 2.3,
+    "paceSecPerKm": 328,
+    "hr": 161
+   },
+   {
+    "m": 1000,
+    "elev": -9.5,
+    "gradePct": -3.9,
+    "paceSecPerKm": 332,
+    "hr": 160
+   },
+   {
+    "m": 1100,
+    "elev": -8.6,
+    "gradePct": 0.9,
+    "paceSecPerKm": 337,
+    "hr": 157
+   },
+   {
+    "m": 1200,
+    "elev": -9.4,
+    "gradePct": -0.8,
+    "paceSecPerKm": 329,
+    "hr": 157
+   },
+   {
+    "m": 1300,
+    "elev": -8.2,
+    "gradePct": 1.2,
+    "paceSecPerKm": 345,
+    "hr": 160
+   },
+   {
+    "m": 1400,
+    "elev": -9.5,
+    "gradePct": -1.3,
+    "paceSecPerKm": 328,
+    "hr": 160
+   },
+   {
+    "m": 1500,
+    "elev": -11.8,
+    "gradePct": -2.3,
+    "paceSecPerKm": 338,
+    "hr": 167
+   },
+   {
+    "m": 1600,
+    "elev": -9.6,
+    "gradePct": 2.2,
+    "paceSecPerKm": 338,
+    "hr": 184
+   },
+   {
+    "m": 1700,
+    "elev": -8.5,
+    "gradePct": 1.1,
+    "paceSecPerKm": 341,
+    "hr": 190
+   },
+   {
+    "m": 1800,
+    "elev": -9.9,
+    "gradePct": -1.4,
+    "paceSecPerKm": 334,
+    "hr": 191
+   },
+   {
+    "m": 1900,
+    "elev": -8.0,
+    "gradePct": 1.9,
+    "paceSecPerKm": 350,
+    "hr": 192
+   },
+   {
+    "m": 2000,
+    "elev": -10.2,
+    "gradePct": -2.2,
+    "paceSecPerKm": 363,
+    "hr": 194
+   },
+   {
+    "m": 2100,
+    "elev": -5.4,
+    "gradePct": 4.8,
+    "paceSecPerKm": 354,
+    "hr": 194
+   },
+   {
+    "m": 2200,
+    "elev": -7.3,
+    "gradePct": -1.9,
+    "paceSecPerKm": 341,
+    "hr": 195
+   },
+   {
+    "m": 2300,
+    "elev": -8.3,
+    "gradePct": -1.0,
+    "paceSecPerKm": 331,
+    "hr": 196
+   },
+   {
+    "m": 2400,
+    "elev": -5.0,
+    "gradePct": 3.3,
+    "paceSecPerKm": 334,
+    "hr": 197
+   },
+   {
+    "m": 2500,
+    "elev": -6.2,
+    "gradePct": -1.2,
+    "paceSecPerKm": 340,
+    "hr": 198
+   },
+   {
+    "m": 2600,
+    "elev": -4.1,
+    "gradePct": 2.1,
+    "paceSecPerKm": 341,
+    "hr": 199
+   },
+   {
+    "m": 2700,
+    "elev": -5.5,
+    "gradePct": -1.4,
+    "paceSecPerKm": 340,
+    "hr": 199
+   },
+   {
+    "m": 2800,
+    "elev": -1.1,
+    "gradePct": 4.4,
+    "paceSecPerKm": 331,
+    "hr": 198
+   },
+   {
+    "m": 2900,
+    "elev": -4.1,
+    "gradePct": -3.0,
+    "paceSecPerKm": 331,
+    "hr": 200
+   }
+  ]
+ },
+ "garminLaps": [
+  {
+   "distance": 1000.0,
+   "duration": 318.113,
+   "movingDuration": 315.0,
+   "elevationGain": 5.13,
+   "elevationLoss": 12.81,
+   "averageHR": 162.0,
+   "maxHR": 176.0,
+   "averageSpeed": 3.144000053405762,
+   "averageRunCadence": 157.375,
+   "maxElevation": 768.29,
+   "minElevation": 758.03
+  },
+  {
+   "distance": 1000.0,
+   "duration": 340.387,
+   "movingDuration": 340.387,
+   "elevationGain": 5.91,
+   "elevationLoss": 6.19,
+   "averageHR": 176.0,
+   "maxHR": 194.0,
+   "averageSpeed": 2.937999963760376,
+   "averageRunCadence": 157.921875,
+   "maxElevation": 761.0,
+   "minElevation": 755.82
+  },
+  {
+   "distance": 993.38,
+   "duration": 336.296,
+   "movingDuration": 335.0,
+   "elevationGain": 14.65,
+   "elevationLoss": 6.33,
+   "averageHR": 197.0,
+   "maxHR": 200.0,
+   "averageSpeed": 2.9539999961853027,
+   "averageRunCadence": 156.765625,
+   "maxElevation": 768.77,
+   "minElevation": 758.03
+  }
+ ]
+}
