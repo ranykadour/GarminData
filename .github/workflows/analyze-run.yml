@@ -1,0 +1,40 @@
+name: Analyze one run's course
+
+on:
+  workflow_dispatch:
+    inputs:
+      activity_id:
+        description: "Garmin activity ID"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Analyze course (derived numbers only, no coordinates)
+        env:
+          GARMIN_TOKENS: ${{ secrets.GARMIN_TOKENS }}
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          ACTIVITY_ID: ${{ inputs.activity_id }}
+        run: |
+          case "$ACTIVITY_ID" in (*[!0-9]*|"") echo "activity_id must be numeric"; exit 1;; esac
+          python scripts/analyze_run.py "$ACTIVITY_ID" "/tmp/out/run-$ACTIVITY_ID.json"
+      - name: Save to the `analysis` branch
+        env:
+          TOKEN: ${{ github.token }}
+          ACTIVITY_ID: ${{ inputs.activity_id }}
+        run: |
+          git fetch -q origin analysis && git worktree add -q /tmp/a origin/analysis || { mkdir -p /tmp/a && git -C /tmp/a init -q; }
+          cd /tmp/a && git checkout -q -B analysis
+          cp /tmp/out/run-$ACTIVITY_ID.json .
+          git add . && git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "Course analysis for $ACTIVITY_ID"
+          git push -q "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:analysis
