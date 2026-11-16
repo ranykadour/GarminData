@@ -2,3 +2,6 @@ site/data/
 __pycache__/
 .venv/
 *.tokens
+
+# Personal training plans (kept out of the public repo)
+*.pdf
